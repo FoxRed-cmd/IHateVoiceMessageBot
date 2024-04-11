@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Telegram.Bot;
 using Telegram.Bot.Types;
+using Telegram.Bot.Exceptions;
 using Vosk;
 
 namespace IHateVoiceMessageBot
@@ -108,13 +109,13 @@ namespace IHateVoiceMessageBot
         {
             string filePath = Path.Combine(appLocation, voiceMessageFileName);
             string imagePath = Path.Combine(appLocation, imageFileName);
+
+            var message = update.Message;
+            long? chatId = message?.Chat.Id;
             textResult = string.Empty;
 
             try
             {
-                var message = update.Message;
-                long? chatId = message?.Chat.Id;
-
                 if (message?.Text?.StartsWith("/imgtotext") ?? false && awaitingImage == false)
                 {
                     awaitingImage = true;
@@ -125,9 +126,11 @@ namespace IHateVoiceMessageBot
 
                 if (awaitingImage)
                 {
-                    if (message?.Photo != null && message?.Photo.Length > 0)
+                    var photo = message?.Photo;
+
+                    if (photo != null && photo.Length > 0)
                     {
-                        string fileId = message?.Photo[0].FileId ?? throw new NullReferenceException();
+                        string fileId = photo[photo.Length - 1].FileId ?? throw new NullReferenceException();
                         var file = await botClient.GetFileAsync(fileId);
 
                         using (var fileStream = new FileStream(imagePath, FileMode.Create))
@@ -141,8 +144,6 @@ namespace IHateVoiceMessageBot
                         {
                             if (textResult != null && textResult != string.Empty)
                                 await botClient.SendTextMessageAsync(chatId, textResult);
-                            else
-                                await botClient.SendTextMessageAsync(chatId, "Не удалось распознать текст :(");
                         }
                         awaitingImage = false;
                     }
@@ -171,6 +172,10 @@ namespace IHateVoiceMessageBot
                             await botClient.SendTextMessageAsync(chatId, textResult);
                     }
                 }
+            }
+            catch (ApiRequestException e)
+            {
+                await botClient.SendTextMessageAsync(chatId, "Не удалось распознать текст :(");
             }
             catch (Exception e)
             {
