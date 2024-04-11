@@ -4,7 +4,6 @@ using System.Text.Json.Serialization;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Vosk;
-using Tesseract;
 
 namespace IHateVoiceMessageBot
 {
@@ -31,9 +30,6 @@ namespace IHateVoiceMessageBot
 
         static Model model = null!;
         static VoskRecognizer vosk = null!;
-        
-        static TesseractEngine tesseract = null!;
-        static string lang = "rus+eng";
 
         static Random random = new Random();
         static Process cmd = null!;
@@ -71,16 +67,6 @@ namespace IHateVoiceMessageBot
             }
         }
 
-        static string ImgToTextRecognising(string filePath)
-        {
-            using (tesseract = new TesseractEngine(Path.Combine(appLocation, "TesseractModels"), lang, EngineMode.Default))
-            {
-                Pix image = Pix.LoadFromFile(filePath);
-                var result = tesseract.Process(image);
-                return result.GetText();
-            }
-        }
-
         static string TextRecognising(string filePath)
         {
             using (var voiceMessageFile = System.IO.File.OpenRead(filePath.Replace(".ogg", ".wav")))
@@ -105,46 +91,12 @@ namespace IHateVoiceMessageBot
         async static Task OnUpdateAsync(ITelegramBotClient botClient, Update update, CancellationToken cancellationToken)
         {
             string filePath = Path.Combine(appLocation, voiceMessageFileName);
-            string imagePath = Path.Combine(appLocation, imageFileName);
             textResult = string.Empty;
 
             try
             {
                 var message = update.Message;
                 long? chatId = message?.Chat.Id;
-
-                if (message?.Text?.StartsWith("/imgtotext") ?? false && awaitingImage == false)
-                {
-                    awaitingImage = true;
-                    if (chatId != null)
-                        await botClient.SendTextMessageAsync(chatId, "Ожидаю изображение...");
-                    return;
-                }
-
-                if (awaitingImage)
-                {
-                    if (message?.Photo != null && message?.Photo.Length > 0)
-                    {
-                        string fileId = message?.Photo[0].FileId ?? throw new NullReferenceException();
-                        var file = await botClient.GetFileAsync(fileId);
-
-                        using (var fileStream = new FileStream(imagePath, FileMode.Create))
-                        {
-                            await botClient.DownloadFileAsync(file.FilePath ?? throw new NullReferenceException(), fileStream);
-                        }
-
-                        string textResult = ImgToTextRecognising(imagePath);
-
-                        if (chatId != null)
-                        {
-                            if (textResult != null && textResult != string.Empty)
-                                await botClient.SendTextMessageAsync(chatId, textResult);
-                            else
-                                await botClient.SendTextMessageAsync(chatId, "Не удалось распознать текст :(");
-                        }
-                        awaitingImage = false;
-                    }
-                }
 
                 if (message?.Voice != null)
                 {
@@ -165,7 +117,7 @@ namespace IHateVoiceMessageBot
                     if (result != null)
                     {
                         textResult = $"{userName} {answersTemplates[random.Next(0, answersTemplates.Length)]}\n\r\n\r{result.Text}";
-                        if (chatId != null && textResult != null && textResult != string.Empty)
+                        if (chatId != null && result.Text != string.Empty)
                             await botClient.SendTextMessageAsync(chatId, textResult);
                     }
                 }
@@ -181,9 +133,6 @@ namespace IHateVoiceMessageBot
 
                 if (System.IO.File.Exists(filePath.Replace(".ogg", ".wav")))
                     System.IO.File.Delete(filePath.Replace(".ogg", ".wav"));
-
-                if (System.IO.File.Exists(imagePath))
-                    System.IO.File.Delete(imagePath);
             }
         }
     }
