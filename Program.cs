@@ -144,9 +144,8 @@ namespace IHateVoiceMessageBot
                             else
                                 await botClient.SendTextMessageAsync(chatId, "Не удалось распознать текст :(");
                         }
+                        awaitingImage = false;
                     }
-
-                    awaitingImage = false;
                 }
 
                 if (message?.Voice != null)
