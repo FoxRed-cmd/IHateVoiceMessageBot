@@ -9,10 +9,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Emgu.CV" Version="4.8.1.5350" />
-    <PackageReference Include="Emgu.CV.runtime.ubuntu-x64" Version="4.8.1.5350" />
-    <PackageReference Include="Emgu.CV.runtime.windows" Version="4.8.1.5350" />
     <PackageReference Include="Telegram.Bot" Version="20.0.0-alpha.1" />
+    <PackageReference Include="Tesseract" Version="5.2.0" />
     <PackageReference Include="Vosk" Version="0.3.38" />
   </ItemGroup>
 

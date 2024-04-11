@@ -4,9 +4,7 @@ using System.Text.Json.Serialization;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Vosk;
-using Emgu.CV.OCR;
-using Emgu.CV.Structure;
-using Emgu.CV;
+using Tesseract;
 
 namespace IHateVoiceMessageBot
 {
@@ -34,7 +32,7 @@ namespace IHateVoiceMessageBot
         static Model model = null!;
         static VoskRecognizer vosk = null!;
         
-        static Tesseract tesseract = null!;
+        static TesseractEngine tesseract = null!;
         static string lang = "rus+eng";
 
         static Random random = new Random();
@@ -75,11 +73,11 @@ namespace IHateVoiceMessageBot
 
         static string ImgToTextRecognising(string filePath)
         {
-            using (tesseract = new Tesseract(Path.Combine(appLocation, "TesseractModels"), lang, OcrEngineMode.LstmOnly))
+            using (tesseract = new TesseractEngine(Path.Combine(appLocation, "TesseractModels"), lang, EngineMode.Default))
             {
-                tesseract.SetImage(new Image<Bgr, byte>(filePath));
-                tesseract.Recognize();
-                return $"{tesseract.GetUTF8Text()}";
+                Pix image = Pix.LoadFromFile(filePath);
+                var result = tesseract.Process(image);
+                return result.GetText();
             }
         }
 
