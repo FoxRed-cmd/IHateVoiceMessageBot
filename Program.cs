@@ -20,7 +20,7 @@ namespace IHateVoiceMessageBot
         static bool awaitingImage = false;
         static string voiceMessageFileName = "audio.ogg";
         static string imageFileName = "image.jpg";
-        static string[] answersTemplates = 
+        static string[] answersTemplates =
             [
                 "балаболит следующее:",
                 "молвит слово вот о чём:",
@@ -67,7 +67,23 @@ namespace IHateVoiceMessageBot
             }
         }
 
-        static string TextRecognising(string filePath)
+        static string ImgToTextRecognising(string filePath)
+        {
+            using (cmd = new Process())
+            {
+                cmd.StartInfo.FileName = "tesseract";
+                cmd.StartInfo.Arguments = $"{filePath} stdout -l rus";
+                cmd.StartInfo.UseShellExecute = false;
+                cmd.StartInfo.CreateNoWindow = true;
+                cmd.StartInfo.RedirectStandardOutput = true;
+                cmd.StartInfo.StandardOutputEncoding = System.Text.Encoding.UTF8;
+                cmd.Start();
+
+                return cmd.StandardOutput.ReadToEnd();
+            }
+        }
+
+        static string TextRecognizing(string filePath)
         {
             using (var voiceMessageFile = System.IO.File.OpenRead(filePath.Replace(".ogg", ".wav")))
             {
@@ -91,12 +107,46 @@ namespace IHateVoiceMessageBot
         async static Task OnUpdateAsync(ITelegramBotClient botClient, Update update, CancellationToken cancellationToken)
         {
             string filePath = Path.Combine(appLocation, voiceMessageFileName);
+            string imagePath = Path.Combine(appLocation, imageFileName);
             textResult = string.Empty;
 
             try
             {
                 var message = update.Message;
                 long? chatId = message?.Chat.Id;
+
+                if (message?.Text?.StartsWith("/imgtotext") ?? false && awaitingImage == false)
+                {
+                    awaitingImage = true;
+                    if (chatId != null)
+                        await botClient.SendTextMessageAsync(chatId, "Ожидаю изображение...");
+                    return;
+                }
+
+                if (awaitingImage)
+                {
+                    if (message?.Photo != null && message?.Photo.Length > 0)
+                    {
+                        string fileId = message?.Photo[0].FileId ?? throw new NullReferenceException();
+                        var file = await botClient.GetFileAsync(fileId);
+
+                        using (var fileStream = new FileStream(imagePath, FileMode.Create))
+                        {
+                            await botClient.DownloadFileAsync(file.FilePath ?? throw new NullReferenceException(), fileStream);
+                        }
+
+                        string textResult = ImgToTextRecognising(imagePath);
+
+                        if (chatId != null)
+                        {
+                            if (textResult != null && textResult != string.Empty)
+                                await botClient.SendTextMessageAsync(chatId, textResult);
+                            else
+                                await botClient.SendTextMessageAsync(chatId, "Не удалось распознать текст :(");
+                        }
+                        awaitingImage = false;
+                    }
+                }
 
                 if (message?.Voice != null)
                 {
@@ -113,7 +163,7 @@ namespace IHateVoiceMessageBot
 
                     await ConvertToWav(filePath);
 
-                    var result = JsonSerializer.Deserialize<TextResult>(TextRecognising(filePath));
+                    var result = JsonSerializer.Deserialize<TextResult>(TextRecognizing(filePath));
                     if (result != null)
                     {
                         textResult = $"{userName} {answersTemplates[random.Next(0, answersTemplates.Length)]}\n\r\n\r{result.Text}";
@@ -133,6 +183,9 @@ namespace IHateVoiceMessageBot
 
                 if (System.IO.File.Exists(filePath.Replace(".ogg", ".wav")))
                     System.IO.File.Delete(filePath.Replace(".ogg", ".wav"));
+
+                if (System.IO.File.Exists(imagePath))
+                    System.IO.File.Delete(imagePath);
             }
         }
     }
