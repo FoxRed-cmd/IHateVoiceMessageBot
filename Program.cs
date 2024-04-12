@@ -21,6 +21,7 @@ namespace IHateVoiceMessageBot
         static bool awaitingImage = false;
         static string voiceMessageFileName = "audio.ogg";
         static string imageFileName = "image.jpg";
+        static Dictionary<string, DateTime> waitingUsers = new();
         static string[] answersTemplates =
             [
                 "балаболит следующее:",
@@ -112,24 +113,37 @@ namespace IHateVoiceMessageBot
 
             var message = update.Message;
             long? chatId = message?.Chat.Id;
+            long? userId = message?.From?.Id;
             textResult = string.Empty;
 
             try
             {
-                if (message?.Text?.StartsWith("/imgtotext") ?? false && awaitingImage == false)
+                if (message?.Text?.StartsWith("/imgtotext") ?? false)
                 {
-                    awaitingImage = true;
-                    if (chatId != null)
+                    if (chatId != null && userId != null)
+                    {
+                        if (waitingUsers.TryAdd($"{userId}{chatId}", DateTime.Now) == false)
+                            waitingUsers[$"{userId}{chatId}"] = DateTime.Now;
                         await botClient.SendTextMessageAsync(chatId, "Ожидаю изображение...");
+                    }
                     return;
                 }
 
-                if (awaitingImage)
+                if (waitingUsers.ContainsKey($"{userId}{chatId}"))
                 {
-                    var photo = message?.Photo;
-
-                    if (photo != null && photo.Length > 0)
+                    if (waitingUsers.TryGetValue($"{userId}{chatId}", out DateTime time))
                     {
+                        int durationMinutes = (time - DateTime.Now).Duration().Minutes;
+                        if (durationMinutes >= 2)
+                        {
+                            waitingUsers.Remove($"{userId}{chatId}");
+                            return;
+                        }
+                    }
+
+                    if (message?.Photo != null && message?.Photo.Length > 0)
+                    {
+                        var photo = message.Photo;
                         string fileId = photo[photo.Length - 1].FileId ?? throw new NullReferenceException();
                         var file = await botClient.GetFileAsync(fileId);
 
@@ -145,7 +159,7 @@ namespace IHateVoiceMessageBot
                             if (textResult != null && textResult != string.Empty)
                                 await botClient.SendTextMessageAsync(chatId, textResult);
                         }
-                        awaitingImage = false;
+                        waitingUsers.Remove($"{userId}{chatId}");
                     }
                 }
 
@@ -173,9 +187,10 @@ namespace IHateVoiceMessageBot
                     }
                 }
             }
-            catch (ApiRequestException e)
+            catch (ApiRequestException)
             {
-                await botClient.SendTextMessageAsync(chatId, "Не удалось распознать текст :(");
+                if (chatId != null)
+                    await botClient.SendTextMessageAsync(chatId, "Не удалось распознать текст :(");
             }
             catch (Exception e)
             {
