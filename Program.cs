@@ -129,6 +129,64 @@ namespace IHateVoiceMessageBot
                     return;
                 }
 
+                if (message?.Text?.ToLower().Contains("какие пары") ?? false)
+                {
+                    string question = message?.Text?.ToLower()
+                        .Replace("какие пары", "").Trim().Replace("?", "") ?? "";
+                    var schedules = await VivtSchedule
+                        .GetScheduleAsync("https://vivt.ru/lk/student/raspisanie", "genin9ttag33j8ndi4pvhpai7d");
+
+                    if (chatId != null)
+                    {
+                        switch (question)
+                        {
+                            case "понедельник":
+                                await botClient
+                                    .SendTextMessageAsync(chatId, schedules[0].Day + schedules[0].Schedule);
+                                break;
+                            case "вторник":
+                                await botClient
+                                    .SendTextMessageAsync(chatId, schedules[1].Day + schedules[1].Schedule);
+                                break;
+                            case "среда":
+                                await botClient
+                                    .SendTextMessageAsync(chatId, schedules[2].Day + schedules[2].Schedule);
+                                break;
+                            case "четверг":
+                                await botClient
+                                    .SendTextMessageAsync(chatId, schedules[3].Day + schedules[3].Schedule);
+                                break;
+                            case "пятница":
+                                await botClient
+                                    .SendTextMessageAsync(chatId, schedules[4].Day + schedules[4].Schedule);
+                                break;
+                            case "суббота":
+                                await botClient
+                                    .SendTextMessageAsync(chatId, schedules[5].Day + schedules[5].Schedule);
+                                break;
+                            case "завтра":
+                                int day = (int)DateTime.Now.DayOfWeek;
+                                if (day != 0)
+                                {
+                                    await botClient
+                                        .SendTextMessageAsync(chatId, schedules[day - 1].Day
+                                            + schedules[day - 1].Schedule);
+                                }
+                                else
+                                    await botClient
+                                        .SendTextMessageAsync(chatId, schedules[0].Day + schedules[0].Schedule);
+                                break;
+                            default:
+                                foreach (var item in schedules)
+                                {
+                                    await botClient
+                                        .SendTextMessageAsync(chatId, item.Day + item.Schedule);
+                                }
+                                break;
+                        }
+                    }
+                }
+
                 if (waitingUsers.ContainsKey($"{userId}{chatId}"))
                 {
                     if (waitingUsers.TryGetValue($"{userId}{chatId}", out DateTime time))
