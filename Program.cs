@@ -129,7 +129,7 @@ namespace IHateVoiceMessageBot
                     return;
                 }
 
-                if (message?.Text?.ToLower().Contains("какие пары") ?? false)
+                if (message?.Text?.ToLower().StartsWith("какие пары") ?? false)
                 {
                     string question = message?.Text?.ToLower()
                         .Replace("какие пары", "").Trim().Replace("?", "") ?? "";
