@@ -16,11 +16,11 @@ namespace IHateVoiceMessageBot
 
     internal class Program
     {
-        static string appLocation = null!;
         static string? token;
-        static bool awaitingImage = false;
         static string voiceMessageFileName = "audio.ogg";
         static string imageFileName = "image.jpg";
+        static string appLocation = AppContext.BaseDirectory;
+        static TextRecognizer recognizer = null!;
         static Dictionary<string, DateTime> waitingUsers = new();
         static string[] answersTemplates =
             [
@@ -29,21 +29,10 @@ namespace IHateVoiceMessageBot
                 "издаёт звуки похожие на эти слова:",
                 "засечный чертила мямлит что-то:"
             ];
-
-        static Model model = null!;
-        static VoskRecognizer vosk = null!;
-
         static Random random = new Random();
         static Process cmd = null!;
-
-        static string textResult = null!;
         static void Main(string[] args)
         {
-            appLocation = AppContext.BaseDirectory;
-
-            model = new(Path.Combine(appLocation, "smodelru"));
-            vosk = new VoskRecognizer(model, 16000f);
-
             while (token == null || token == string.Empty)
             {
                 Console.Write("Please enter token: ");
@@ -53,52 +42,11 @@ namespace IHateVoiceMessageBot
             TelegramBotClient telegramBot = new(token);
             telegramBot.StartReceiving(OnUpdateAsync, Error);
 
+            recognizer = new TextRecognizer(
+                new VoskRecognizer(new Model(Path.Combine(appLocation, "smodelru")), 16000f)
+                );
+
             Console.ReadLine();
-        }
-
-        static async Task ConvertToWav(string filePath)
-        {
-            using (cmd = new Process())
-            {
-                cmd.StartInfo.FileName = "ffmpeg";
-                cmd.StartInfo.Arguments = $"-i \"{filePath}\" -acodec pcm_s16le -ac 1 -ar 16000 -y \"{filePath.Replace(".ogg", ".wav")}\"";
-                cmd.StartInfo.UseShellExecute = false;
-                cmd.StartInfo.CreateNoWindow = true;
-                cmd.Start();
-                await cmd.WaitForExitAsync();
-            }
-        }
-
-        static string ImgToTextRecognising(string filePath)
-        {
-            using (cmd = new Process())
-            {
-                cmd.StartInfo.FileName = "tesseract";
-                cmd.StartInfo.Arguments = $"{filePath} stdout -l rus";
-                cmd.StartInfo.UseShellExecute = false;
-                cmd.StartInfo.CreateNoWindow = true;
-                cmd.StartInfo.RedirectStandardOutput = true;
-                cmd.StartInfo.StandardOutputEncoding = System.Text.Encoding.UTF8;
-                cmd.Start();
-
-                return cmd.StandardOutput.ReadToEnd();
-            }
-        }
-
-        static string TextRecognizing(string filePath)
-        {
-            using (var voiceMessageFile = System.IO.File.OpenRead(filePath.Replace(".ogg", ".wav")))
-            {
-                byte[] buffer = new byte[4096];
-                int bytesRead;
-
-                while ((bytesRead = voiceMessageFile.Read(buffer, 0, buffer.Length)) > 0 && textResult == string.Empty)
-                {
-                    vosk.AcceptWaveform(buffer, bytesRead);
-                }
-
-                return vosk.Result();
-            }
         }
 
         static Task Error(ITelegramBotClient client, Exception exception, CancellationToken token)
@@ -114,7 +62,6 @@ namespace IHateVoiceMessageBot
             var message = update.Message;
             long? chatId = message?.Chat.Id;
             long? userId = message?.From?.Id;
-            textResult = string.Empty;
 
             try
             {
@@ -128,64 +75,6 @@ namespace IHateVoiceMessageBot
                     }
                     return;
                 }
-
-                /*if (message?.Text?.ToLower().StartsWith("какие пары") ?? false)
-                {
-                    string question = message?.Text?.ToLower()
-                        .Replace("какие пары", "").Trim().Replace("?", "") ?? "";
-                    var schedules = await VivtSchedule
-                        .GetScheduleAsync("https://vivt.ru/lk/student/raspisanie", "genin9ttag33j8ndi4pvhpai7d");
-
-                    if (chatId != null)
-                    {
-                        switch (question)
-                        {
-                            case "понедельник":
-                                await botClient
-                                    .SendTextMessageAsync(chatId, schedules[0].Day + schedules[0].Schedule);
-                                break;
-                            case "вторник":
-                                await botClient
-                                    .SendTextMessageAsync(chatId, schedules[1].Day + schedules[1].Schedule);
-                                break;
-                            case "среда":
-                                await botClient
-                                    .SendTextMessageAsync(chatId, schedules[2].Day + schedules[2].Schedule);
-                                break;
-                            case "четверг":
-                                await botClient
-                                    .SendTextMessageAsync(chatId, schedules[3].Day + schedules[3].Schedule);
-                                break;
-                            case "пятница":
-                                await botClient
-                                    .SendTextMessageAsync(chatId, schedules[4].Day + schedules[4].Schedule);
-                                break;
-                            case "суббота":
-                                await botClient
-                                    .SendTextMessageAsync(chatId, schedules[5].Day + schedules[5].Schedule);
-                                break;
-                            case "завтра":
-                                int day = (int)DateTime.Now.DayOfWeek;
-                                if (day != 0)
-                                {
-                                    await botClient
-                                        .SendTextMessageAsync(chatId, schedules[day - 1].Day
-                                            + schedules[day - 1].Schedule);
-                                }
-                                else
-                                    await botClient
-                                        .SendTextMessageAsync(chatId, schedules[0].Day + schedules[0].Schedule);
-                                break;
-                            default:
-                                foreach (var item in schedules)
-                                {
-                                    await botClient
-                                        .SendTextMessageAsync(chatId, item.Day + item.Schedule);
-                                }
-                                break;
-                        }
-                    }
-                }*/
 
                 if (waitingUsers.ContainsKey($"{userId}{chatId}"))
                 {
@@ -210,12 +99,12 @@ namespace IHateVoiceMessageBot
                             await botClient.DownloadFileAsync(file.FilePath ?? throw new NullReferenceException(), fileStream);
                         }
 
-                        string textResult = ImgToTextRecognising(imagePath);
+                        string textFromImg = recognizer.ImgToTextRecognizing(imagePath);
 
                         if (chatId != null)
                         {
-                            if (textResult != null && textResult != string.Empty)
-                                await botClient.SendTextMessageAsync(chatId, textResult);
+                            if (textFromImg != null && textFromImg != string.Empty)
+                                await botClient.SendTextMessageAsync(chatId, textFromImg);
                         }
                         waitingUsers.Remove($"{userId}{chatId}");
                     }
@@ -224,22 +113,22 @@ namespace IHateVoiceMessageBot
                 if (message?.Voice != null)
                 {
                     string userName = message?.From?.FirstName ?? string.Empty;
-
                     string fileId = message?.Voice.FileId ?? throw new NullReferenceException();
 
                     var file = await botClient.GetFileAsync(fileId);
 
                     using (var fileStream = new FileStream(filePath, FileMode.Create))
                     {
-                        await botClient.DownloadFileAsync(file.FilePath ?? throw new NullReferenceException(), fileStream);
+                        await botClient.DownloadFileAsync(file.FilePath ?? throw new NullReferenceException(),
+                            fileStream);
                     }
 
-                    await ConvertToWav(filePath);
+                    await recognizer.ConvertToWav(filePath);
 
-                    var result = JsonSerializer.Deserialize<TextResult>(TextRecognizing(filePath));
+                    var result = JsonSerializer.Deserialize<TextResult>(recognizer.VoiceToTextRecognizing(filePath));
                     if (result != null)
                     {
-                        textResult = $"{userName} {answersTemplates[random.Next(0, answersTemplates.Length)]}\n\r\n\r{result.Text}";
+                        string textResult = $"{userName} {answersTemplates[random.Next(0, answersTemplates.Length)]}\n\r\n\r{result.Text}";
                         if (chatId != null && result.Text != string.Empty)
                             await botClient.SendTextMessageAsync(chatId, textResult);
                     }
