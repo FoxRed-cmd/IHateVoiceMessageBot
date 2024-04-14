@@ -129,7 +129,7 @@ namespace IHateVoiceMessageBot
                     return;
                 }
 
-                if (message?.Text?.ToLower().StartsWith("какие пары") ?? false)
+                /*if (message?.Text?.ToLower().StartsWith("какие пары") ?? false)
                 {
                     string question = message?.Text?.ToLower()
                         .Replace("какие пары", "").Trim().Replace("?", "") ?? "";
@@ -185,7 +185,7 @@ namespace IHateVoiceMessageBot
                                 break;
                         }
                     }
-                }
+                }*/
 
                 if (waitingUsers.ContainsKey($"{userId}{chatId}"))
                 {
