@@ -15,16 +15,8 @@ internal class TextRecognizer
 	{
 		using (cmd = new Process())
 		{
-			cmd.StartInfo.FileName = "sudo";
-			cmd.StartInfo.Arguments = "-i";
-			cmd.StartInfo.UseShellExecute = false;
-			cmd.StartInfo.CreateNoWindow = true;
-			cmd.Start();
-		}
-		using (cmd = new Process())
-		{
-			cmd.StartInfo.FileName = "sync;";
-			cmd.StartInfo.Arguments = "echo 3 > /proc/sys/vm/drop_caches";
+			cmd.StartInfo.FileName = "bash";
+			cmd.StartInfo.Arguments = "~/learcache.sh";
 			cmd.StartInfo.UseShellExecute = false;
 			cmd.StartInfo.CreateNoWindow = true;
 			cmd.Start();
