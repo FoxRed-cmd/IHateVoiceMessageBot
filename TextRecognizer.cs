@@ -16,7 +16,7 @@ internal class TextRecognizer
 		using (cmd = new Process())
 		{
 			cmd.StartInfo.FileName = "bash";
-			cmd.StartInfo.Arguments = "~/learcache.sh";
+			cmd.StartInfo.Arguments = "~/clearcache.sh";
 			cmd.StartInfo.UseShellExecute = false;
 			cmd.StartInfo.CreateNoWindow = true;
 			cmd.Start();
