@@ -16,7 +16,7 @@ internal class TextRecognizer
 		using (cmd = new Process())
 		{
 			cmd.StartInfo.FileName = "sudo";
-			cmd.StartInfo.Arguments = "-i && sync; echo 3 > /proc/sys/vm/drop_caches";
+			cmd.StartInfo.Arguments = "-i & sync; echo 3 > /proc/sys/vm/drop_caches";
 			cmd.StartInfo.UseShellExecute = false;
 			cmd.StartInfo.CreateNoWindow = true;
 			cmd.Start();
