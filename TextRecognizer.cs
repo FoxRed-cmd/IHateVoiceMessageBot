@@ -11,13 +11,25 @@ internal class TextRecognizer
 		this.vosk = vosk;
 	}
 
+	public void ClearRam()
+	{
+		using (cmd = new Process())
+		{
+			cmd.StartInfo.FileName = "sudo";
+			cmd.StartInfo.Arguments = "-i && sync; echo 3 > /proc/sys/vm/drop_caches";
+			cmd.StartInfo.UseShellExecute = false;
+			cmd.StartInfo.CreateNoWindow = true;
+			cmd.Start();
+		}
+	}
+
 	public async Task ConvertToWav(string filePath)
 	{
 		using (cmd = new Process())
 		{
 			cmd.StartInfo.FileName = "ffmpeg";
 			cmd.StartInfo.Arguments =
-			$"-i \"{filePath}\" -acodec pcm_s16le -ac 1 -ar 16000 -y \"{filePath.Replace(".ogg", ".wav")}\"";
+			$"-i \"{filePath}\" -nostats -loglevel 0 -acodec pcm_s16le -ac 1 -ar 16000 -y \"{filePath.Replace(".ogg", ".wav")}\"";
 			cmd.StartInfo.UseShellExecute = false;
 			cmd.StartInfo.CreateNoWindow = true;
 			cmd.Start();
@@ -36,7 +48,6 @@ internal class TextRecognizer
 			{
 				vosk.AcceptWaveform(buffer, bytesRead);
 			}
-
 			return vosk.Result();
 		}
 	}

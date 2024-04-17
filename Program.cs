@@ -153,6 +153,8 @@ namespace IHateVoiceMessageBot
 
                 if (System.IO.File.Exists(imagePath))
                     System.IO.File.Delete(imagePath);
+
+                recognizer.ClearRam();
             }
         }
     }
