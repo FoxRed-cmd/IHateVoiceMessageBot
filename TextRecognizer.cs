@@ -1,15 +1,10 @@
 using System.Diagnostics;
 using Vosk;
 
-internal class TextRecognizer
+internal class TextRecognizer(VoskRecognizer vosk)
 {
 	private Process cmd = null!;
-	private VoskRecognizer vosk = null!;
-
-	public TextRecognizer(VoskRecognizer vosk)
-	{
-		this.vosk = vosk;
-	}
+	private VoskRecognizer vosk = vosk;
 
 	public void ClearRam()
 	{
@@ -39,17 +34,15 @@ internal class TextRecognizer
 
 	public string VoiceToTextRecognizing(string filePath)
 	{
-		using (var voiceMessageFile = File.OpenRead(filePath.Replace(".ogg", ".wav")))
-		{
-			byte[] buffer = new byte[4096];
-			int bytesRead;
+		using var voiceMessageFile = File.OpenRead(filePath.Replace(".ogg", ".wav"));
+		byte[] buffer = new byte[4096];
+		int bytesRead;
 
-			while ((bytesRead = voiceMessageFile.Read(buffer, 0, buffer.Length)) > 0)
-			{
-				vosk.AcceptWaveform(buffer, bytesRead);
-			}
-			return vosk.Result();
+		while ((bytesRead = voiceMessageFile.Read(buffer, 0, buffer.Length)) > 0)
+		{
+			vosk.AcceptWaveform(buffer, bytesRead);
 		}
+		return vosk.Result();
 	}
 
 	public string ImgToTextRecognizing(string filePath)
